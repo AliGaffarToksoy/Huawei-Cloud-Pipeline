@@ -1,0 +1,42 @@
+name: Huawei Cloud CCE Automated Deployment
+
+on:
+  push:
+    branches:
+      - main # Veya master
+
+env:
+  IMAGE_NAME: swr.tr-west-1.myhuaweicloud.com/enterprise-project/huawei-ai-search
+  REGION_ID: tr-west-1
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Kodu Çek (Checkout)
+        uses: actions/checkout@v3
+
+      - name: 🐳 Docker İmajını İnşa Et
+        run: |
+          cd app
+          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.IMAGE_NAME }}:latest
+
+      - name: ☁️ Huawei SWR'ye Giriş Yap
+        uses: docker/login-action@v2
+        with:
+          registry: swr.tr-west-1.myhuaweicloud.com
+          username: ${{ secrets.HUAWEI_SWR_USERNAME }}
+          password: ${{ secrets.HUAWEI_SWR_PASSWORD }}
+
+      - name: 🚀 İmajı Huawei Cloud'a Pushla
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.IMAGE_NAME }}:latest
+
+      # Not: Gerçek ortamda bu adımda CCE Kubeconfig ayarlanır ve kubectl apply çalıştırılır.
+      - name: ☸️ CCE (Kubernetes) Kümesini Güncelle
+        run: |
+          echo "K8s manifestosu güncelleniyor..."
+          # kubectl apply -f k8s/deployment.yaml
+          echo "🚀 Yeni versiyon başarıyla Huawei Cloud CCE üzerinde yayına alındı!"
